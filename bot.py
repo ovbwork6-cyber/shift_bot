@@ -1,93 +1,75 @@
-import os
 import asyncio
 import logging
+import os
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.types import Message, FSInputFile
+from aiogram.filters import Command
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from starlette.responses import Response
+import uvicorn
 
-# Імпортуємо ваші модулі
+# Ваші модулі
 import config
 import handlers
 import database
 
 # Налаштування логування
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# Отримуємо токен з оточення
+# Отримуємо токен
 TOKEN = os.environ.get('BOT_TOKEN')
 if not TOKEN:
-    raise ValueError("BOT_TOKEN не знайдено в змінних оточення!")
+    raise ValueError("BOT_TOKEN не знайдено!")
 
-# Render надає цю змінну автоматично
-RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL')
-PORT = int(os.environ.get('PORT', 8000))
+# Ініціалізація бота та диспетчера
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+# Підключаємо ваші обробники з handlers.py
+# Якщо там є Router, то:
+dp.include_router(handlers.router)
+
+# Або якщо там просто функції - додайте їх вручну:
+# dp.message.register(handlers.start, Command("start"))
+# dp.message.register(handlers.help_command, Command("help"))
+
+# Веб-сервер для вебхуків
+async def webhook(request: Request) -> Response:
+    try:
+        update = await request.json()
+        await dp.feed_webhook_update(bot, update)
+        return Response()
+    except Exception as e:
+        logging.error(f"Webhook error: {e}")
+        return Response(status_code=500)
+
+async def health(request: Request) -> Response:
+    return Response(content="OK", media_type="text/plain")
 
 # Ініціалізація бази даних
 database.init_db()
 
-# Створюємо додаток
-application = Application.builder().token(TOKEN).updater(None).build()
-
-# Додаємо ваші обробники з handlers.py
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handlers.start(update, context)  # викликає вашу логіку
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handlers.help(update, context)
-
-# Додайте всі ваші команди
-application.add_handler(CommandHandler("start", start_command))
-application.add_handler(CommandHandler("help", help_command))
-# ... додайте інші команди
-
-# Додайте обробник повідомлень (якщо є)
-# application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.handle_message))
-
 async def main():
-    # Встановлюємо вебхук
-    webhook_url = f"{RENDER_URL}/webhook"
-    await application.bot.set_webhook(url=webhook_url)
-    logger.info(f"Вебхук встановлено на {webhook_url}")
-    
-    # Обробник для Telegram вебхуків
-    async def telegram_webhook(request: Request) -> Response:
-        try:
-            data = await request.json()
-            update = Update.de_json(data, application.bot)
-            await application.update_queue.put(update)
-            return Response()
-        except Exception as e:
-            logger.error(f"Помилка вебхука: {e}")
-            return Response(status_code=500)
-    
-    # Health check для Render (щоб сервіс не перезапускався) [citation:4]
-    async def health_check(request: Request) -> PlainTextResponse:
-        return PlainTextResponse("OK")
+    # Отримуємо URL від Render
+    RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL')
+    if RENDER_URL:
+        webhook_url = f"{RENDER_URL}/webhook"
+        await bot.set_webhook(url=webhook_url)
+        logging.info(f"Webhook встановлено на {webhook_url}")
     
     # Створюємо веб-додаток
-    starlette_app = Starlette(routes=[
-        Route("/webhook", telegram_webhook, methods=["POST"]),
-        Route("/health", health_check, methods=["GET"]),
-        Route("/healthcheck", health_check, methods=["GET"]),  # Render іноді використовує це
+    app = Starlette(routes=[
+        Route("/webhook", webhook, methods=["POST"]),
+        Route("/health", health, methods=["GET"]),
     ])
     
-    # Запускаємо веб-сервер
-    import uvicorn
-    server = uvicorn.Server(uvicorn.Config(
-        starlette_app, 
-        host="0.0.0.0", 
-        port=PORT,
-        log_level="info"
-    ))
-    
-    async with application:
-        await application.start()
-        await server.serve()
-        await application.stop()
+    # Запускаємо сервер
+    PORT = int(os.environ.get('PORT', 8000))
+    config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
 
 if __name__ == "__main__":
     asyncio.run(main())
