@@ -1,6 +1,27 @@
 from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime, timedelta
 import calendar
+import os
+
+# 1. Отримуємо шлях до папки, де лежить сам файл logic.py
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 2. З'єднуємо шлях до папки з назвою файлу шрифту
+# Це гарантує, що бот знайде файл незалежно від того, де запущений
+font_path = os.path.join(current_dir, "arial.ttf")
+
+def draw_month_image(shift, year, month):
+    # ... твій код ...
+    
+    try:
+        # Тепер використовуємо змінну font_path
+        font_title = ImageFont.truetype(font_path, 28)
+        font_days = ImageFont.truetype(font_path, 20)
+        font_legend = ImageFont.truetype(font_path, 18)
+    except OSError:
+        # Якщо файл шрифту все одно не знайдено (наприклад, забув завантажити)
+        print(f"Помилка: не знайдено шрифт за шляхом {font_path}")
+        font_title = font_days = font_legend = ImageFont.load_default()
 
 # Ваші дані змін (цикл 15 днів)
 SHIFT_DATA = {
