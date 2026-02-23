@@ -1,15 +1,9 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-def start_kb():
-    buttons = [[KeyboardButton(text=f"Зміна {l}") for l in "АБВГД"]]
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-
-def menu_kb():
-    kb = [
-        [KeyboardButton(text="Мій графік на сьогодні")],
-        [KeyboardButton(text="Графік на місяць")],
-        [KeyboardButton(text="Графік на рік (файл)")], # Додана кнопка
-        [KeyboardButton(text="Змінити зміну")]
+def main_menu():
+    keyboard = [
+        [KeyboardButton(text="📅 Поточний місяць"), KeyboardButton(text="➡️ Наступний місяць")],
+        [KeyboardButton(text="🗓️ Поточний рік"), KeyboardButton(text="🚀 Наступний рік")],
+        [KeyboardButton(text="⚙️ Змінити зміну")]
     ]
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
