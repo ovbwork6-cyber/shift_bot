@@ -1,5 +1,5 @@
 aiogram==3.10.0
-starlette==0.37.2
-uvicorn==0.30.6
-aiofiles==23.2.1
-Pillow==10.3.0
+Pillow==10.4.0
+python-dateutil==2.9.0
+gspread==6.1.2
+oauth2client==4.1.3
