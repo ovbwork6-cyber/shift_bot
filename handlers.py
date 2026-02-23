@@ -1,68 +1,44 @@
-from aiogram import F, Router
-from aiogram.types import Message, FSInputFile  # ДОДАНО FSInputFile сюди
-from aiogram.filters import Command
-from datetime import datetime
-import calendar
-import logic, database, kb
-import os
+from datetime import datetime, timedelta
 
-router = Router()
-
-@router.message(Command("start"))
-async def start(msg: Message):
-    database.init_db()
-    await msg.answer("Вітаю! Обери свою зміну:", reply_markup=kb.start_kb())
-
-@router.message(F.text.startswith("Зміна "))
-async def save_shift(msg: Message):
-    shift = msg.text[-1]
-    database.set_user_shift(msg.from_user.id, shift)
-    await msg.answer(f"Зміну {shift} збережено!", reply_markup=kb.menu_kb())
-
-@router.message(F.text == "Мій графік на сьогодні")
-async def today_work(msg: Message):
-    shift = database.get_user_shift(msg.from_user.id)
-    if not shift:
-        return await msg.answer("Спочатку обери зміну!")
-    res = logic.get_status(shift, datetime.now())
-    await msg.answer(f"Сьогодні ({datetime.now().strftime('%d.%m')}): **{res}**", parse_mode="Markdown")
-
-@router.message(F.text == "Змінити зміну")
-async def change(msg: Message):
-    await msg.answer("Обери нову зміну:", reply_markup=kb.start_kb())
-
-# Обробник для ГРАФІКА НА МІСЯЦЬ (виводить текст у чат)
-@router.message(F.text == "Графік на місяць")
-async def show_month_img(message: Message):
-    shift = database.get_user_shift(message.from_user.id)
-    if not shift:
-        return await message.answer("Спочатку обери зміну!")
-
+# Функція-помічник для розрахунку наступного місяця
+def get_next_month_details():
     now = datetime.now()
-    # Створюємо картинку
+    # Якщо зараз грудень, наступний місяць — січень наступного року
+    next_month_date = (now.replace(day=28) + timedelta(days=5))
+    return next_month_date.year, next_month_date.month
+
+# 1. Поточний місяць
+@router.message(F.text == "📅 Поточний місяць")
+async def show_this_month(message: Message):
+    shift = database.get_user_shift(message.from_user.id)
+    now = datetime.now()
     path = logic.draw_month_image(shift, now.year, now.month)
-    
-    # Відправляємо як фото
-    photo = FSInputFile(path)
-    await message.answer_photo(photo, caption=f"Твій графік на цей місяць")
-    
-    # Видаляємо тимчасовий файл
+    await message.answer_photo(FSInputFile(path), caption=f"Графік на {now.strftime('%m.%Y')}")
     os.remove(path)
 
-# Обробник для ГРАФІКА НА РІК (відправляє файл)
-@router.message(F.text == "Графік на рік (файл)")
-async def send_year_file(msg: Message):
-    shift = database.get_user_shift(msg.from_user.id)
-    if not shift:
-        return await msg.answer("Спочатку обери зміну!")
-        
-    await msg.answer("Генерую файл на 2026 рік, зачекайте...")
-    
-    # ВИКЛИКАЄМО ФАЙЛОВУ ГЕНЕРАЦІЮ (logic.generate_year_file)
-    file_path = logic.generate_year_file(shift, 2026)
-    
-    document = FSInputFile(file_path)
-    await msg.answer_document(document, caption=f"Твій графік на 2026 рік (Зміна {shift})")
-    
-    if os.path.exists(file_path):
-        os.remove(file_path)
+# 2. Наступний місяць
+@router.message(F.text == "➡️ Наступний місяць")
+async def show_next_month(message: Message):
+    shift = database.get_user_shift(message.from_user.id)
+    next_year, next_month = get_next_month_details()
+    path = logic.draw_month_image(shift, next_year, next_month)
+    await message.answer_photo(FSInputFile(path), caption=f"Графік на {next_month:02d}.{next_year}")
+    os.remove(path)
+
+# 3. Поточний рік (текстовий файл або довга картинка)
+@router.message(F.text == "🗓️ Поточний рік")
+async def show_this_year(message: Message):
+    shift = database.get_user_shift(message.from_user.id)
+    year = datetime.now().year
+    path = logic.generate_year_file(shift, year) # Твоя функція для .txt
+    await message.answer_document(FSInputFile(path), caption=f"Графік на весь {year} рік")
+    os.remove(path)
+
+# 4. Наступний рік
+@router.message(F.text == "🚀 Наступний рік")
+async def show_next_year(message: Message):
+    shift = database.get_user_shift(message.from_user.id)
+    year = datetime.now().year + 1
+    path = logic.generate_year_file(shift, year)
+    await message.answer_document(FSInputFile(path), caption=f"Графік на весь {year} рік")
+    os.remove(path)
