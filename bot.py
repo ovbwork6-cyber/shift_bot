@@ -67,8 +67,8 @@ async def main():
     
     # Запускаємо сервер
     PORT = int(os.environ.get('PORT', 8000))
-    config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_level="info")
-    server = uvicorn.Server(config)
+    server_config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_level="info")
+    server = uvicorn.Server(server_config)
     await server.serve()
 
 if __name__ == "__main__":
