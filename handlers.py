@@ -61,6 +61,6 @@ async def change_shift_req(message: Message):
 # Обробник вибору конкретної зміни (Зміна 1, 2, 3, 4)
 @router.message(F.text.startswith("Зміна"))
 async def set_user_shift(message: Message):
-    shift_num = int(message.text.split(" ")[1])
+    shift_num = int(message.text.split(" ")[А])
     database.save_user_shift(message.from_user.id, shift_num)
     await message.answer(f"Зміну №{shift_num} збережено!", reply_markup=kb.main_menu())
