@@ -8,12 +8,11 @@ def main_menu():
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-# ДОДАЙ ЦЮ ФУНКЦІЮ (її не вистачало):
 def shift_selection():
     keyboard = [
         [KeyboardButton(text="Зміна А"), KeyboardButton(text="Зміна Б")],
         [KeyboardButton(text="Зміна В"), KeyboardButton(text="Зміна Г")],
-        [KeyboardButton(text="Зміна Д"),
+        [KeyboardButton(text="Зміна Д")],
         [KeyboardButton(text="⬅️ Назад")]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
