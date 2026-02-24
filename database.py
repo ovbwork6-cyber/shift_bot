@@ -2,23 +2,28 @@ import sqlite3
 
 def init_db():
     conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-    cur.execute('''CREATE TABLE IF NOT EXISTS users 
-                   (user_id INTEGER PRIMARY KEY, shift TEXT)''')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            shift INTEGER
+        )
+    ''')
     conn.commit()
     conn.close()
 
-def set_user_shift(user_id, shift):
+# ОСЬ ЦЯ ФУНКЦІЯ МАЄ БУТИ ТУТ:
+def save_user_shift(user_id, shift):
     conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-    cur.execute('INSERT OR REPLACE INTO users VALUES (?, ?)', (user_id, shift))
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR REPLACE INTO users (user_id, shift) VALUES (?, ?)', (user_id, shift))
     conn.commit()
     conn.close()
 
 def get_user_shift(user_id):
     conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-    cur.execute('SELECT shift FROM users WHERE user_id = ?', (user_id,))
-    res = cur.fetchone()
+    cursor = conn.cursor()
+    cursor.execute('SELECT shift FROM users WHERE user_id = ?', (user_id,))
+    result = cursor.fetchone()
     conn.close()
-    return res[0] if res else None
+    return result[0] if result else None
