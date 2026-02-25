@@ -14,7 +14,8 @@ import kb
 # 1. Команда СТАРТ
 @router.message(Command("start"))
 async def start_handler(message: Message):
-    await message.answer("Привіт! Оберіть потрібний графік:", reply_markup=kb.main_menu())
+    print(f"DEBUG: Отримано команду start від {message.from_user.id}") # Це з'явиться в логах
+    await message.answer("Привіт! Я прокинувся. Оберіть потрібний графік:", reply_markup=kb.main_menu())
 
 # 2. Кнопка НАЗАД
 @router.message(F.text == "⬅️ Назад")
