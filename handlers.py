@@ -14,8 +14,14 @@ import kb
 # 1. Команда СТАРТ
 @router.message(Command("start"))
 async def start_handler(message: Message):
-    print(f"DEBUG: Отримано команду start від {message.from_user.id}") # Це з'явиться в логах
-    await message.answer("Привіт! Я прокинувся. Оберіть потрібний графік:", reply_markup=kb.main_menu())
+    print(f"DEBUG: Спроба надіслати текст користувачу {message.from_user.id}")
+    try:
+        # Надсилаємо ТЕКСТ БЕЗ КЛАВІАТУРИ для тесту
+        await message.answer("Тест зв'язку: Я тебе бачу!")
+        print("DEBUG: Текст успішно надіслано")
+    except Exception as e:
+        print(f"DEBUG: Помилка відправки: {e}")
+
 
 # 2. Кнопка НАЗАД
 @router.message(F.text == "⬅️ Назад")
