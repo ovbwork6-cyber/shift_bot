@@ -10,6 +10,8 @@ router = Router()
 import logic
 import database
 import kb
+import aiosqlite  # Додай, якщо немає
+ADMIN_ID = 701568112  # ЗАМІНИ ЦЕ НА СВІЙ РЕАЛЬНИЙ ID
 
 # 1. Команда СТАРТ
 @router.message(Command("start"))
@@ -75,3 +77,33 @@ async def set_user_shift(message: Message):
         await message.answer(f"✅ Зміну {shift_letter} збережено!", reply_markup=kb.main_menu())
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
+
+# --- АДМІН-ПАНЕЛЬ ---
+
+@router.message(Command("admin"))
+async def admin_panel(message: Message):
+    # Перевірка: чи це ти?
+    if message.from_user.id != ADMIN_ID:
+        return # Бот просто проігнорує повідомлення від інших
+
+    try:
+        # Підключаємося до твоєї бази даних
+        async with aiosqlite.connect("users.db") as db:
+            # Рахуємо кількість користувачів
+            async with db.execute("SELECT COUNT(*) FROM users") as cursor:
+                count = await cursor.fetchone()
+            
+            # (Опціонально) Отримуємо імена останніх 5 користувачів
+            # Припускаємо, що в таблиці є колонки user_id або username
+            async with db.execute("SELECT user_id FROM users LIMIT 5") as cursor:
+                rows = await cursor.fetchall()
+                users_list = "\n".join([f"• ID: {row[0]}" for row in rows])
+
+        await message.answer(
+            f"📊 **Адмін-панель Shift Bot**\n\n"
+            f"👤 Всього користувачів: **{count[0]}**\n\n"
+            f"Последні активні ID:\n{users_list if users_list else 'Список порожній'}\n\n"
+            f"🚀 Статус сервера: **Online**"
+        )
+    except Exception as e:
+        await message.answer(f"❌ Помилка БД: {e}")
