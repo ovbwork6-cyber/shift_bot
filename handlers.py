@@ -13,11 +13,26 @@ import kb
 import aiosqlite  # Додай, якщо немає
 ADMIN_ID = 701568112  # ЗАМІНИ ЦЕ НА СВІЙ РЕАЛЬНИЙ ID
 
-# 1. Команда СТАРТ
+# 1. Команда СТАРТ з перевіркою зміни
 @router.message(Command("start"))
 async def start_handler(message: Message):
-    print(f"DEBUG: Отримано команду start від {message.from_user.id}") # Це з'явиться в логах
-    await message.answer("Привіт! Я прокинувся. Оберіть потрібний графік:", reply_markup=kb.main_menu())
+    print(f"DEBUG: Отримано команду start від {message.from_user.id}")
+    
+    # Перевіряємо, чи є вже зміна у базі
+    shift = database.get_user_shift(message.from_user.id)
+    
+    if not shift:
+        # Якщо новий користувач — відправляємо на вибір зміни
+        await message.answer(
+            "Привіт! Я допоможу тобі з графіком.\nСпочатку обери свою зміну:", 
+            reply_markup=kb.shift_selection()
+        )
+    else:
+        # Якщо старий користувач — просто вітаємо і даємо головне меню
+        await message.answer(
+            f"Привіт! Твоя зміна: {shift}. Що хочеш подивитись?", 
+            reply_markup=kb.main_menu()
+        )
 
 # 2. Кнопка НАЗАД
 @router.message(F.text == "⬅️ Назад")
