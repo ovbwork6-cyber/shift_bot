@@ -190,7 +190,7 @@ async def show_next_month(message: Message):
         return await message.answer("Спочатку оберіть зміну!", reply_markup=kb.shift_selection())
     
     next_m = datetime.now() + relativedelta(months=1)
-    path = logic.draw_month_image(shift, next_m.year, next_m.month)
+    path = logic.generate_year_file(shift, next_m.year)
     await message.answer_photo(FSInputFile(path), caption=f"Ваш графік на {next_m.strftime('%m.%Y')}")
     if os.path.exists(path): os.remove(path)
 
