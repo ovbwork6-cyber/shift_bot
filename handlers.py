@@ -128,7 +128,8 @@ async def process_extra_date(message: Message, state: FSMContext):
         await message.answer(f"✅ Додаткову зміну ({data['extra_type']}) на {d_str} збережено!", reply_markup=kb.main_menu())
         await state.clear()
     except Exception:
-        await message.answer("❌ Формат дати: YYYY-MM-DD")from aiogram import Router, F
+        await message.answer("❌ Формат дати: YYYY-MM-DD")
+from aiogram import Router, F
 from aiogram.types import Message, FSInputFile
 from aiogram.filters import Command
 from datetime import datetime
