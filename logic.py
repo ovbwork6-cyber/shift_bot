@@ -37,7 +37,7 @@ def generate_year_file(user_shift: str, year: int, user_id: int = None) -> str:
     img_w = margin_x * 2 + col_w_month + col_w_shift + 31 * col_w_day
     img_h = margin_y * 2 + 12 * (6 * row_h) + 60
 
-    img = Image.new("RGB", (img_w, img_h), fill="white")
+    img = Image.new("RGB", (img_w, img_h), color="white")
     draw = ImageDraw.Draw(img)
 
     try:
