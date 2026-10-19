@@ -171,28 +171,24 @@ async def back_to_menu(message: Message):
     await message.answer("Головне меню:", reply_markup=kb.main_menu())
 
 # 3. ПОТОЧНИЙ МІСЯЦЬ
-@router.message(F.text == "📅 Поточний місяць")
+@router.message(F.text == "📆 Поточний місяць")
 async def show_this_month(message: Message):
-    shift = database.get_user_shift(message.from_user.id)
-    if not shift: 
-        return await message.answer("Спочатку оберіть зміну!", reply_markup=kb.shift_selection())
-    
+    shift = await database.get_user_shift(message.from_user.id)
     now = datetime.now()
-    path = logic.generate_year_file(shift, now.year)
-    await message.answer_photo(FSInputFile(path), caption=f"Ваш графік на {now.strftime('%m.%Y')}")
-    if os.path.exists(path): os.remove(path)
+    path = logic.draw_month_image(shift, now.year, now.month)
+    photo = FSInputFile(path)
+    await message.answer_photo(photo, caption=f"Графік на {now.strftime('%m.%Y')}")
 
 # 4. НАСТУПНИЙ МІСЯЦЬ
 @router.message(F.text == "➡️ Наступний місяць")
 async def show_next_month(message: Message):
-    shift = database.get_user_shift(message.from_user.id)
-    if not shift: 
-        return await message.answer("Спочатку оберіть зміну!", reply_markup=kb.shift_selection())
-    
-    next_m = datetime.now() + relativedelta(months=1)
-    path = logic.generate_year_file(shift, next_m.year)
-    await message.answer_photo(FSInputFile(path), caption=f"Ваш графік на {next_m.strftime('%m.%Y')}")
-    if os.path.exists(path): os.remove(path)
+    shift = await database.get_user_shift(message.from_user.id)
+    now = datetime.now()
+    next_m = now.month % 12 + 1
+    next_y = now.year + (1 if next_m == 1 else 0)
+    path = logic.draw_month_image(shift, next_y, next_m)
+    photo = FSInputFile(path)
+    await message.answer_photo(photo, caption=f"Графік на {next_m:02d}.{next_y}")
 
 # 5. РІЧНІ ГРАФІКИ (2026-2027)
 @router.message(F.text.in_({"🗓️ Поточний рік", "🚀 Наступний рік"}))
