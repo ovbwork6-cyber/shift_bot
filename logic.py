@@ -1,120 +1,126 @@
 import calendar
+import os
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-import database
 
-SHIFTS = ["А", "Б", "В", "Г", "Д"]
-MONTH_NAMES_UA = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"]
+# Спроба завантажити чіткий системний шрифт
+try:
+    FONT_TITLE = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+    FONT_HEADER = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+    FONT_DAY = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+    FONT_LEGEND = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+except Exception:
+    FONT_TITLE = FONT_HEADER = FONT_DAY = FONT_LEGEND = ImageFont.load_default()
 
-BASE_DATE = datetime(2026, 1, 1)
-SHIFT_OFFSETS = {"А": 0, "Б": 1, "В": 2, "Г": 3, "Д": 4}
+# Кольори змін
+COLOR_NIGHT = (255, 0, 0)      # 1 - Нічна (Червоний)
+COLOR_MORNING = (0, 150, 0)    # 2 - Ранкова (Зелений)
+COLOR_EVENING = (255, 150, 0)  # 3 - Вечірня (Помаранчевий)
+COLOR_OFF = (220, 220, 220)    # Вихідний (Сірий)
 
-def get_shift_status(shift_letter: str, date_obj: datetime) -> str:
-    delta = (date_obj - BASE_DATE).days
-    offset = SHIFT_OFFSETS.get(shift_letter, 0)
-    cycle_day = (delta + offset) % 5
-    if cycle_day == 0: return "1" # Нічна
-    elif cycle_day == 1: return "2" # Ранкова
-    elif cycle_day == 2: return "3" # Вечірня
-    else: return ""
+UKR_MONTHS = [
+    "", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+    "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+]
 
-def generate_year_file(user_shift: str, year: int, user_id: int = None) -> str:
-    vacations, sicks, extras = [], [], {}
-    if user_id:
-        for _, s_str, e_str in database.get_user_vacations(user_id):
-            try: vacations.append((datetime.strptime(s_str, "%Y-%m-%d").date(), datetime.strptime(e_str, "%Y-%m-%d").date()))
-            except ValueError: pass
-        for _, s_str, e_str in database.get_user_sick_leaves(user_id):
-            try: sicks.append((datetime.strptime(s_str, "%Y-%m-%d").date(), datetime.strptime(e_str, "%Y-%m-%d").date()))
-            except ValueError: pass
-        for _, d_str, stype in database.get_user_extra_shifts(user_id):
-            try: extras[datetime.strptime(d_str, "%Y-%m-%d").date()] = stype
-            except ValueError: pass
+UKR_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
 
-    col_w_month, col_w_shift, col_w_day, row_h = 140, 50, 38, 30
-    margin_x, margin_y = 40, 100
+def get_shift_for_day(shift_letter: str, date_obj: datetime) -> str:
+    """
+    Тут має бути ваша логіка розрахунку зміни (1, 2, 3 або 0/вихідний).
+    Поповертає '1', '2', '3' або '0'.
+    """
+    # Приклад алгоритму (замініть на свою точну логіку циклу зміності):
+    base_date = datetime(2026, 1, 1)
+    delta_days = (date_obj - base_date).days
+    
+    # Приклад 4-бригадного циклу (222, 111, 333, вихідні)
+    shift_offset = {"А": 0, "Б": 2, "В": 4, "Г": 6, "Д": 8}.get(shift_letter, 0)
+    cycle_day = (delta_days + shift_offset) % 12
+    
+    if cycle_day in [0, 1, 2]:
+        return "1"  # Нічна
+    elif cycle_day in [3, 4, 5]:
+        return "2"  # Ранкова
+    elif cycle_day in [6, 7, 8]:
+        return "3"  # Вечірня
+    return "0"      # Вихідний
 
-    img_w = margin_x * 2 + col_w_month + col_w_shift + 31 * col_w_day
-    img_h = margin_y * 2 + 12 * (6 * row_h) + 60
-
-    img = Image.new("RGB", (img_w, img_h), color="white")
+def draw_month_image(shift_letter: str, year: int, month: int) -> str:
+    width, height = 600, 650
+    img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
-    try:
-        font_title = ImageFont.truetype("arial.ttf", 52)
-        font_cell = ImageFont.truetype("arial.ttf", 18)
-        font_bold = ImageFont.truetype("arialbd.ttf", 18)
-    except Exception:
-        font_title = font_cell = font_bold = ImageFont.load_default()
+    # Заголовок
+    title_text = f"{UKR_MONTHS[month]} {year} | Зміна {shift_letter}"
+    draw.text((width // 2, 40), title_text, fill="black", font=FONT_TITLE, anchor="mm")
 
-    draw.text((img_w // 2 - 250, 25), f"ГРАФІК {year} РІК", fill=(15, 82, 186), font=font_title)
+    # Дні тижня
+    start_x = 50
+    step_x = 75
+    start_y = 100
+    for i, day_name in enumerate(UKR_DAYS):
+        draw.text((start_x + i * step_x + 25, start_y), day_name, fill="gray", font=FONT_HEADER, anchor="mm")
 
-    COLOR_BLUE_HEADER = (25, 118, 210)
-    COLOR_ORANGE_HEADER = (224, 86, 36)
-    COLOR_VACATION = (76, 175, 80)     # Зелений відпустка
-    COLOR_SICK = (33, 150, 243)         # Синій лікарняний
-    COLOR_EXTRA = (255, 152, 0)         # Помаранчевий дод. зміна
-    COLOR_GRID = (0, 0, 0)
+    # Календар
+    cal = calendar.monthcalendar(year, month)
+    radius = 24
+    curr_y = start_y + 40
 
-    curr_y = margin_y
-
-    draw.rectangle([margin_x, curr_y, margin_x + col_w_month, curr_y + row_h], outline=COLOR_GRID)
-    draw.text((margin_x + 35, curr_y + 5), "Місяць", fill="black", font=font_bold)
-    draw.rectangle([margin_x + col_w_month, curr_y, margin_x + col_w_month + col_w_shift, curr_y + row_h], outline=COLOR_GRID)
-    draw.text((margin_x + col_w_month + 8, curr_y + 5), "Зміна", fill="black", font=font_bold)
-    draw.rectangle([margin_x + col_w_month + col_w_shift, curr_y, margin_x + col_w_month + col_w_shift + 31 * col_w_day, curr_y + row_h], outline=COLOR_GRID)
-    draw.text((margin_x + col_w_month + col_w_shift + 400, curr_y + 5), "Число місяця", fill=(15, 82, 186), font=font_bold)
-
-    curr_y += row_h
-
-    for m in range(1, 13):
-        days_in_month = calendar.monthrange(year, m)[1]
-        draw.rectangle([margin_x, curr_y, margin_x + col_w_month + col_w_shift, curr_y + row_h], outline=COLOR_GRID)
-        draw.text((margin_x + 25, curr_y + 5), MONTH_NAMES_UA[m-1], fill=(15, 82, 186), font=font_bold)
-
-        for d in range(1, 32):
-            dx = margin_x + col_w_month + col_w_shift + (d - 1) * col_w_day
-            if d <= days_in_month:
-                dt = datetime(year, m, d)
-                bg_col = COLOR_ORANGE_HEADER if dt.weekday() >= 5 else COLOR_BLUE_HEADER
-                draw.rectangle([dx, curr_y, dx + col_w_day, curr_y + row_h], fill=bg_col, outline=COLOR_GRID)
-                draw.text((dx + (10 if d < 10 else 4), curr_y + 5), str(d), fill="white", font=font_bold)
+    for week in cal:
+        for i, day in enumerate(week):
+            if day == 0:
+                continue
+            
+            x = start_x + i * step_x + 25
+            y = curr_y + 25
+            
+            # Визначення типу зміни
+            dt = datetime(year, month, day)
+            shift_type = get_shift_for_day(shift_letter, dt)
+            
+            if shift_type == "1":
+                color = COLOR_NIGHT
+                text_color = "white"
+            elif shift_type == "2":
+                color = COLOR_MORNING
+                text_color = "white"
+            elif shift_type == "3":
+                color = COLOR_EVENING
+                text_color = "white"
             else:
-                draw.rectangle([dx, curr_y, dx + col_w_day, curr_y + row_h], fill=(210, 210, 210), outline=COLOR_GRID)
+                color = COLOR_OFF
+                text_color = "black"
 
-        curr_y += row_h
+            # Малюємо круг
+            draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
+            # Текст числа
+            draw.text((x, y), str(day), fill=text_color, font=FONT_DAY, anchor="mm")
 
-        for sh in SHIFTS:
-            sh_bg = (255, 235, 156) if sh == user_shift else "white"
-            draw.rectangle([margin_x + col_w_month, curr_y, margin_x + col_w_month + col_w_shift, curr_y + row_h], fill=sh_bg, outline=COLOR_GRID)
-            draw.text((margin_x + col_w_month + 18, curr_y + 5), sh, fill=(200, 0, 0) if sh == user_shift else (15, 82, 186), font=font_bold)
+        curr_y += 60
 
-            for d in range(1, 32):
-                dx = margin_x + col_w_month + col_w_shift + (d - 1) * col_w_day
-                if d <= days_in_month:
-                    dt = datetime(year, m, d).date()
-                    is_vac = any(v_s <= dt <= v_e for v_s, v_e in vacations) if sh == user_shift else False
-                    is_sick = any(s_s <= dt <= s_e for s_s, s_e in sicks) if sh == user_shift else False
-                    has_extra = dt in extras if sh == user_shift else False
+    # Легенда знизу
+    legend_y = height - 50
+    items = [
+        (COLOR_NIGHT, "Зміна №1"),
+        (COLOR_MORNING, "Зміна №2"),
+        (COLOR_EVENING, "Зміна №3"),
+        (COLOR_OFF, "Вихідний")
+    ]
+    
+    leg_x = 40
+    for color, label in items:
+        draw.rectangle([leg_x, legend_y, leg_x + 20, legend_y + 20], fill=color, outline="black")
+        draw.text((leg_x + 30, legend_y + 10), label, fill="black", font=FONT_LEGEND, anchor="lm")
+        leg_x += 135
 
-                    val = get_shift_status(sh, datetime(year, m, d))
-                    
-                    cell_fill = "white"
-                    txt = val
-                    if is_sick:
-                        cell_fill, txt = COLOR_SICK, "Л"
-                    elif is_vac:
-                        cell_fill, txt = COLOR_VACATION, "В"
-                    elif has_extra:
-                        cell_fill, txt = COLOR_EXTRA, f"Д{extras[dt]}"
+    # Збереження зображення
+    os.makedirs("static", exist_ok=True)
+    file_path = f"static/month_{shift_letter}_{year}_{month}.png"
+    img.save(file_path)
+    return file_path
 
-                    draw.rectangle([dx, curr_y, dx + col_w_day, curr_y + row_h], fill=cell_fill, outline=COLOR_GRID)
-                    draw.text((dx + (8 if len(txt)>1 else 12), curr_y + 5), txt, fill="white" if cell_fill != "white" else "black", font=font_cell)
-                else:
-                    draw.rectangle([dx, curr_y, dx + col_w_day, curr_y + row_h], fill=(210, 210, 210), outline=COLOR_GRID)
-
-            curr_y += row_h
-
-    out_path = f"graphic_{year}_{user_shift}.png"
-    img.save(out_path)
-    return out_path
+# Аліас для підтримки річного файлу або прямих викликів
+def generate_year_file(user_shift: str, year: int) -> str:
+    now = datetime.now()
+    return draw_month_image(user_shift, year, now.month)
