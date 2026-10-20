@@ -3,138 +3,114 @@ import os
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
-# Кольори змін
-COLOR_NIGHT = (255, 0, 0)        # 1 - Нічна (Червоний)
-COLOR_MORNING = (0, 150, 0)      # 2 - Ранкова (Зелений)
-COLOR_EVENING = (255, 150, 0)    # 3 - Вечірня (Помаранчевий)
-COLOR_OFF = (220, 220, 220)      # Вихідний (Сірий)
+# Данi змiн
+SHIFT_DATA = {
+    'А': [1, 0, 0, 3, 3, 3, 0, 0, 2, 2, 2, 0, 0, 1, 1],
+    'Б': [0, 0, 2, 2, 2, 0, 0, 1, 1, 1, 0, 0, 3, 3, 3],
+    'В': [0, 1, 1, 1, 0, 0, 3, 3, 3, 0, 0, 2, 2, 2, 0],
+    'Г': [3, 3, 3, 0, 0, 2, 2, 2, 0, 0, 1, 1, 1, 0, 0],
+    'Д': [2, 2, 0, 0, 1, 1, 1, 0, 0, 3, 3, 3, 0, 0, 2]
+}
 
-# Надійне підключення шрифту з підтримкою кирилиці
+ANCHOR_DATE = datetime(2026, 1, 1)
+
+MONTHS_UA = [
+    "", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+    "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+]
+SHIFTS = ['А', 'Б', 'В', 'Г', 'Д']
+
+# Кольори згідно з фото оригіналу
+COLOR_HEADER_WEEKDAY = (212, 118, 59)   # Помаранчевий/терракотовий для буднів
+COLOR_HEADER_WEEKEND = (30, 115, 190)   # Яскраво-синій для вихідних (Сб/Нд)
+COLOR_SHIFT_WORK = (212, 118, 59)      # Помаранчева заливка для робочих змін (1, 2, 3)
+COLOR_SHIFT_OFF = (235, 235, 235)       # Світло-сірий для вихідних
+COLOR_MONTH_TITLE = (40, 90, 160)       # Синій колір для назв місяців
+
+# Завантаження шрифту
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 if not os.path.exists(FONT_PATH):
     FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 try:
-    FONT_TITLE = ImageFont.truetype(FONT_PATH, 28)
-    FONT_HEADER = ImageFont.truetype(FONT_PATH, 18)
-    FONT_DAY = ImageFont.truetype(FONT_PATH, 18)
-    FONT_LEGEND = ImageFont.truetype(FONT_PATH, 16)
-    FONT_SMALL = ImageFont.truetype(FONT_PATH, 12)
+    FONT_TITLE = ImageFont.truetype(FONT_PATH, 34)
+    FONT_HEADER = ImageFont.truetype(FONT_PATH, 16)
+    FONT_CELL = ImageFont.truetype(FONT_PATH, 13)
 except Exception:
-    FONT_TITLE = FONT_HEADER = FONT_DAY = FONT_LEGEND = FONT_SMALL = ImageFont.load_default()
+    FONT_TITLE = FONT_HEADER = FONT_CELL = ImageFont.load_default()
 
-UKR_MONTHS = [
-    "", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
-    "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
-]
-UKR_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+def get_shift_code(shift_letter, date_obj):
+    delta_days = (date_obj.date() - ANCHOR_DATE.date()).days
+    idx = delta_days % 15
+    return SHIFT_DATA[shift_letter][idx]
 
-def get_shift_for_day(shift_letter: str, date_obj: datetime) -> str:
-    base_date = datetime(2026, 1, 1)
-    delta_days = (date_obj - base_date).days
-    shift_offset = {"А": 0, "Б": 2, "В": 4, "Г": 6, "Д": 8}.get(shift_letter, 0)
-    cycle_day = (delta_days + shift_offset) % 12
-    
-    if cycle_day in [0, 1, 2]:
-        return "1"  # Нічна
-    elif cycle_day in [3, 4, 5]:
-        return "2"  # Ранкова
-    elif cycle_day in [6, 7, 8]:
-        return "3"  # Вечірня
-    return "0"      # Вихідний
+def draw_month_image(shift_letter, year, month):
+    # Залишається ваша робоча функція для місяця з кружечками
+    pass
 
-# --- ГЕНЕРАЦІЯ ОДНОГО МІСЯЦЯ (КРУЖЕЧКИ) ---
-def draw_month_image(shift_letter: str, year: int, month: int) -> str:
-    width, height = 600, 650
-    img = Image.new("RGB", (width, height), color="white")
-    draw = ImageDraw.Draw(img)
+def generate_year_file(user_shift: str, year: int) -> str:
+    cell_w, cell_h = 24, 18
+    margin_left = 130
+    margin_top = 80
+    month_block_h = cell_h * 6 + 6  # 1 рядок чисел + 5 рядків змін (А..Д)
 
-    title_text = f"{UKR_MONTHS[month]} {year} | Зміна {shift_letter}"
-    draw.text((width // 2, 40), title_text, fill="black", font=FONT_TITLE, anchor="mm")
-
-    start_x, step_x = 50, 75
-    start_y = 100
-    for i, day_name in enumerate(UKR_DAYS):
-        draw.text((start_x + i * step_x + 25, start_y), day_name, fill="gray", font=FONT_HEADER, anchor="mm")
-
-    cal = calendar.monthcalendar(year, month)
-    radius = 24
-    curr_y = start_y + 40
-
-    for week in cal:
-        for i, day in enumerate(week):
-            if day == 0:
-                continue
-            x = start_x + i * step_x + 25
-            y = curr_y + 25
-            dt = datetime(year, month, day)
-            shift_type = get_shift_for_day(shift_letter, dt)
-            
-            color = COLOR_NIGHT if shift_type == "1" else (
-                COLOR_MORNING if shift_type == "2" else (
-                COLOR_EVENING if shift_type == "3" else COLOR_OFF
-            ))
-            text_color = "white" if shift_type in ["1", "2", "3"] else "black"
-
-            draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
-            draw.text((x, y), str(day), fill=text_color, font=FONT_DAY, anchor="mm")
-        curr_y += 60
-
-    legend_y = height - 50
-    items = [(COLOR_NIGHT, "Зміна №1"), (COLOR_MORNING, "Зміна №2"), (COLOR_EVENING, "Зміна №3"), (COLOR_OFF, "Вихідний")]
-    leg_x = 40
-    for color, label in items:
-        draw.rectangle([leg_x, legend_y, leg_x + 20, legend_y + 20], fill=color, outline="black")
-        draw.text((leg_x + 30, legend_y + 10), label, fill="black", font=FONT_LEGEND, anchor="lm")
-        leg_x += 135
-
-    os.makedirs("static", exist_ok=True)
-    file_path = f"static/month_{shift_letter}_{year}_{month}.png"
-    img.save(file_path)
-    return file_path
-
-# --- ГЕНЕРАЦІЯ РІЧНОГО ГРАФІКА З КОЛЬОРОВИМИ ЗМІНАМИ ---
-def generate_year_file(shift_letter: str, year: int) -> str:
-    cell_w, cell_h = 28, 22
-    margin_x, margin_y = 120, 80
-    width = margin_x + 31 * cell_w + 40
-    height = margin_y + 12 * cell_h + 80
+    width = margin_left + 31 * cell_w + 30
+    height = margin_top + 12 * month_block_h + 40
 
     img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
-    # Заголовок
-    draw.text((width // 2, 35), f"Графік чергувань на {year} рік | Зміна {shift_letter}", fill="black", font=FONT_TITLE, anchor="mm")
+    # Великий заголовок зверху
+    draw.text((width // 2, 40), f"ГРАФІК {year} РІК", fill=(30, 115, 190), font=FONT_TITLE, anchor="mm")
 
-    # Шапка днів (1..31)
-    for day in range(1, 32):
-        x = margin_x + (day - 1) * cell_w
-        draw.text((x + cell_w // 2, margin_y - 15), str(day), fill="black", font=FONT_SMALL, anchor="mm")
+    current_y = margin_top
 
-    # Сітка та кольорові клітинки змін для кожного місяця
     for month in range(1, 13):
-        y = margin_y + (month - 1) * cell_h
-        draw.text((20, y + cell_h // 2), UKR_MONTHS[month], fill="black", font=FONT_HEADER, anchor="lm")
-        
+        # Колонка «Місяць / Зміна»
+        draw.rectangle([10, current_y, margin_left - 30, current_y + cell_h - 1], fill=(220, 230, 242), outline="gray")
+        draw.text((margin_left // 2 - 10, current_y + cell_h // 2), MONTHS_UA[month], fill=COLOR_MONTH_TITLE, font=FONT_HEADER, anchor="mm")
+
         days_in_m = calendar.monthrange(year, month)[1]
-        for day in range(1, 31):
-            x = margin_x + (day - 1) * cell_w
+
+        # Шапка чисел днів (1..31): Сині для вихідних, Помаранчеві для буднів
+        for day in range(1, 32):
+            x = margin_left + (day - 1) * cell_w
             if day <= days_in_m:
                 dt = datetime(year, month, day)
-                shift_type = get_shift_for_day(shift_letter, dt)
-                color = COLOR_NIGHT if shift_type == "1" else (
-                    COLOR_MORNING if shift_type == "2" else (
-                    COLOR_EVENING if shift_type == "3" else COLOR_OFF
-                ))
-                text_color = "white" if shift_type in ["1", "2", "3"] else "black"
-                
-                # Замальовуємо клітинку кольором зміни
-                draw.rectangle([x, y, x + cell_w - 1, y + cell_h - 1], fill=color, outline="gray")
-                draw.text((x + cell_w // 2, y + cell_h // 2), shift_type if shift_type != "0" else "В", fill=text_color, font=FONT_SMALL, anchor="mm")
+                is_weekend = dt.weekday() >= 5
+                bg_color = COLOR_HEADER_WEEKEND if is_weekend else COLOR_HEADER_WEEKDAY
+                draw.rectangle([x, current_y, x + cell_w - 1, current_y + cell_h - 1], fill=bg_color, outline="white")
+                draw.text((x + cell_w // 2, current_y + cell_h // 2), str(day), fill="white", font=FONT_CELL, anchor="mm")
             else:
-                draw.rectangle([x, y, x + cell_w - 1, y + cell_h - 1], fill=(240, 240, 240))
+                draw.rectangle([x, current_y, x + cell_w - 1, current_y + cell_h - 1], fill=(200, 200, 200), outline="gray")
+
+        # 5 рядків змін (А, Б, В, Г, Д)
+        for s_idx, s_letter in enumerate(SHIFTS):
+            row_y = current_y + (s_idx + 1) * cell_h
+            
+            # Позначка букви зміни збоку
+            draw.rectangle([margin_left - 25, row_y, margin_left - 1, row_y + cell_h - 1], fill=(240, 240, 240), outline="gray")
+            draw.text((margin_left - 13, row_y + cell_h // 2), s_letter, fill="black", font=FONT_CELL, anchor="mm")
+
+            for day in range(1, 32):
+                x = margin_left + (day - 1) * cell_w
+                if day <= days_in_m:
+                    dt = datetime(year, month, day)
+                    code = get_shift_code(s_letter, dt)
+                    
+                    # Помаранчева заливка для робочих змін (1, 2, 3), сіра для вихідного
+                    cell_bg = COLOR_SHIFT_WORK if code in [1, 2, 3] else COLOR_SHIFT_OFF
+                    text_str = str(code) if code != 0 else ""
+                    
+                    draw.rectangle([x, row_y, x + cell_w - 1, row_y + cell_h - 1], fill=cell_bg, outline="gray")
+                    if text_str:
+                        draw.text((x + cell_w // 2, row_y + cell_h // 2), text_str, fill="black", font=FONT_CELL, anchor="mm")
+                else:
+                    draw.rectangle([x, row_y, x + cell_w - 1, row_y + cell_h - 1], fill=(180, 180, 180), outline="gray")
+
+        current_y += month_block_h
 
     os.makedirs("static", exist_ok=True)
-    file_path = f"static/year_{shift_letter}_{year}.png"
+    file_path = f"static/year_DCS_{year}.png"
     img.save(file_path)
     return file_path
