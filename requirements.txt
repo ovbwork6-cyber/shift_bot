@@ -1,8 +1,4 @@
 aiogram>=3.0.0
-starlette
-uvicorn
 Pillow
 python-dateutil
 aiosqlite
-apscheduler
-
